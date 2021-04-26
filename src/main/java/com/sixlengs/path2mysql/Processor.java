@@ -66,14 +66,12 @@ public class Processor {
             File[] files = new File(directory).listFiles();
             for (File fileSon : files) {
                 List<String> pathList = getAllFilePath(fileSon, new ArrayList<String>());
-                List<Full_img_unzip_2014_2015_fill_PDF_PATH> list = pathList.stream().map(s -> {
-                    return new Full_img_unzip_2014_2015_fill_PDF_PATH(s);
-                }).collect(Collectors.toList());
-
-                save2mysql(list);
-                log.info("------任务结束------- 当前时间{}  花费时间{} \n\n", TimeUtils.format(new Date()), TimeUtils.longDiffFormat(nowStart, System.currentTimeMillis()));
-                System.exit(0);
+                // FIXME 递归时,每满2000写一次,最后返回的是最后一批,不满2000的数据,写入mysql
+                // TODO 这里, 写入mysql ,多线程,不能阻塞住
+                save2mysql(pathList);
             }
+            log.info("------任务结束------- 当前时间{}  花费时间{} \n\n", TimeUtils.format(new Date()), TimeUtils.longDiffFormat(nowStart, System.currentTimeMillis()));
+            System.exit(0);
         } else {
             System.out.println("参数错误:  目录 后缀: PDF/* ip 库 表名 用户名 密码");
             System.exit(0);
@@ -105,14 +103,22 @@ public class Processor {
                 // 未指定后缀
                 if ("*".equals(suffix)) {
                     filePathList.add(file.getAbsolutePath().replace("\\", "/"));
-
+                    if (filePathList.size()>=2000){
+                        save2mysql(filePathList);
+                        filePathList.clear();
+                    }
                 }
                 // 指定后缀 , 大写比较
                 else {
                     if (file.getAbsolutePath().toUpperCase().endsWith(suffix)) {
                         filePathList.add(file.getAbsolutePath().replace("\\", "/"));
+                        if (filePathList.size()>=2000){
+                            save2mysql(filePathList);
+                            filePathList.clear();
+                        }
                     }
                 }
+                // 最后清空不够2000条的缓存
             }
         }
         return filePathList;
@@ -131,17 +137,17 @@ public class Processor {
         }
     }
 
-    public static void save2mysql(List<Full_img_unzip_2014_2015_fill_PDF_PATH> pdfList) {
+    public static void save2mysql(List<String> pathList) {
         try {
             PreparedStatement ps;
             ps = conn.prepareStatement(StrUtil.format("insert into {} values (null,?)", table));
-            List<List<Full_img_unzip_2014_2015_fill_PDF_PATH>> lists = ListSplitUtils.subListByNum(pdfList, 1000);
-            for (List<Full_img_unzip_2014_2015_fill_PDF_PATH> list : lists) {
+            List<List<String>> lists = ListSplitUtils.subListByNum(pathList, 1000);
+            for (List<String> list : lists) {
                 // 批次写入 1000条
                 log.info("PDF路径写入mysql,当前批次【{}】", list.size());
-                for (Full_img_unzip_2014_2015_fill_PDF_PATH bean : list) {
+                for (String path : list) {
 //                    ps.setString(1, bean.getFileName());
-                    ps.setString(1, bean.getAbsolutePath());
+                    ps.setString(1, path);
 
                     ps.addBatch();
                     ps.executeBatch();

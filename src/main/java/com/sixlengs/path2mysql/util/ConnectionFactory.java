@@ -5,6 +5,7 @@ import cn.hutool.core.util.StrUtil;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.util.List;
 import java.util.Properties;
 
@@ -35,7 +36,7 @@ public class ConnectionFactory {
 //        }
 //    }
 
-    public static Connection getConnection(String ip, String database, String table, String username, String password) {
+    public static Connection getConnection(String ip, String database, String username, String password) {
         String url = StrUtil.format("jdbc:mysql://{}:3306/{}?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=GMT%2B8", ip, database);
         Connection conn = null;
         try {
@@ -49,13 +50,10 @@ public class ConnectionFactory {
     public static void createTable(String tableName) {
         tableName = tableName;
         String createTable = StrUtil.format("create table {} ()", tableName);
-
+        Connection conn = null;
+        PreparedStatement S=null;
+//        S.execute()
     }
-
-    public static void savePath(List<String> data, String tableName) {
-        String sql = "insert table ";
-    }
-
 
 //        public static org.apache.hadoop.hbase.client.Connection createConnection(Configuration configuration, ExecutorService threads) {
 //            Connection conn=null;
@@ -67,8 +65,8 @@ public class ConnectionFactory {
 //            return (org.apache.hadoop.hbase.client.Connection) conn;
 //        }
 
-    public static void main(String[] args) {
-        System.out.println(ConnectionFactory.getConnection());
-    }
+//    public static void main(String[] args) {
+//        System.out.println(ConnectionFactory.getConnection());
+//    }
 
 }

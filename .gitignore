@@ -1,0 +1,41 @@
+/target/
+*/target/
+!.mvn/wrapper/maven-wrapper.jar
+
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+.idea
+*.iws
+*.iml
+*.ipr
+*/.settings/
+.DS_Store
+*/.idea/
+
+/nbproject/private/
+/build/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# Compiled class file
+*.class
+
+# Log file
+*.log
+
+
+# BlueJ files
+*.ctxt
+
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Package Files #

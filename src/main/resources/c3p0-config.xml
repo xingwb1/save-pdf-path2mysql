@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<c3p0-config>
+    <default-config>
+        <!-- 生产 -->
+        <!--<property name="user">sixlens01</property>
+        <property name="password">sixlens@2019!</property>
+        <property name="jdbcUrl">jdbc:mysql://rm-2ze1cq21h9o43yc8k.mysql.rds.aliyuncs.com:3306/matching?serverTimezone=UTC</property>-->
+
+        <property name="user">biao</property>
+        <property name="password">Caip2018!</property>
+        <property name="jdbcUrl">jdbc:mysql://172.20.2.22:3306/task?serverTimezone=GMT&amp;useSSL=false&amp;serverTimezone=Asia/Shanghai</property>
+
+
+        <!--<property name="user">liangfeng</property>-->
+        <!--<property name="password">LiangFeng@123</property>-->
+        <!--<property name="jdbcUrl">jdbc:mysql://172.20.2.73:3306/sixlens?serverTimezone=GMT&amp;useSSL=false</property>-->
+
+        <!--<named-config name="a">-->
+            <!--<property name="driverClass">com.mysql.jdbc.Driver</property>-->
+            <!--<property name="jdbcUrl">jdbc:mysql://172.20.2.22:3306/task?serverTimezone=GMT</property>-->
+            <!--<property name="user">hadoop</property>-->
+            <!--<property name="password">Hadoop@1234</property>-->
+        <!--</named-config>-->
+
+        <property name="driverClass">com.mysql.jdbc.Driver</property>
+        <property name="acquireIncrement">5</property>
+        <!--        <property name="initialPoolSize">20</property>-->
+        <property name="initialPoolSize">2</property>
+        <property name="maxIdleTime">30</property>
+        <property name="maxPoolSize">100</property>
+        <!--        <property name="minPoolSize">10</property>-->
+        <property name="minPoolSize">2</property>
+    </default-config>
+</c3p0-config>

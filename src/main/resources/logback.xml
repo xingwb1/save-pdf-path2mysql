@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" scanPeriod="1 seconds" debug="false">
+    <contextName>logback</contextName>
+    <!--    <property name="LOG_PATH}" value="./logs" />-->
+
+    <property name="CONSOLE_LOG_PATTERN"
+              value="%white(%date{yyyy-MM-dd HH:mm:ss.SSS}) %highlight(%-5level) -- %green([%thread]) %cyan(%logger{50}) : %magenta(%replace(%caller{1}){'\t|Caller.{1}0|\r\n', ''})   %white(%msg%n)  "/>
+    <property name="LOG_PATTEN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} %replace(%caller{1}){'\t|Caller.{1}0|\r\n', ''} - %msg%n"/>
+    <contextListener class="com.sixlengs.path2mysql.listener.CustomLogContextListener" />
+
+    <!--输出到控制台-->
+    <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+        <!--此日志appender是为开发使用，只配置最底级别，控制台输出的日志级别是大于或等于此级别的日志信息-->
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>debug</level>
+        </filter>
+        <encoder>
+            <!--            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %contextName [%thread] %-5level %logger{36} - %msg%n</pattern>-->
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            <charset>utf-8</charset>
+        </encoder>
+    </appender>
+
+    <!--输出到debug-->
+    <appender name="debug" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/debug-%d{yyyy年MM月dd日}.log</fileNamePattern>
+        </rollingPolicy>
+        <append>true</append>
+        <encoder>
+            <pattern>${LOG_PATTEN}</pattern>
+            <charset>utf-8</charset>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter"><!-- 只打印DEBUG日志 -->
+            <level>DEBUG</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+    </appender>
+
+    <!--输出到info-->
+    <appender name="info" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/info-%d{yyyy年MM月dd日}.log</fileNamePattern>
+        </rollingPolicy>
+        <append>true</append>
+        <encoder>
+            <pattern>${LOG_PATTEN}</pattern>
+            <charset>utf-8</charset>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter"><!-- 只打印INFO日志 -->
+            <level>INFO</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+    </appender>
+
+    <!--输出到error-->
+    <appender name="error" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/error-%d{yyyy年MM月dd日}.log</fileNamePattern>
+        </rollingPolicy>
+        <append>true</append>
+        <encoder>
+            <pattern>${LOG_PATTEN}</pattern>
+            <charset>utf-8</charset>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter"><!-- 只打印ERROR日志 -->
+            <level>ERROR</level>1
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+    </appender>
+
+    <!--输出到warn-->
+    <appender name="warn" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/warn-%d{yyyy年MM月dd日}.log</fileNamePattern>
+        </rollingPolicy>
+        <append>true</append>
+        <encoder>
+            <pattern>${LOG_PATTEN}</pattern>
+            <charset>utf-8</charset>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter"><!-- 只打印WARN日志 -->
+            <level>WARN</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+    </appender>
+    <!--分别设置对应的日志输出节点 -->
+    <root level="info">
+        <appender-ref ref="console" />
+        <appender-ref ref="debug" />
+        <appender-ref ref="info" />
+        <appender-ref ref="error" />
+        <appender-ref ref="warn" />
+    </root>
+
+</configuration>
+        <!--<?xml version="1.0" encoding="UTF-8"?>-->
+        <!--&lt;!&ndash;详细介绍使用：https://icode.blog.csdn.net/article/details/88874162&ndash;&gt;-->
+        <!--&lt;!&ndash;debug="true" : 打印 logback 内部状态（默认当 logback 运行出错时才会打印内部状态 ）, 配置该属性后打印条件如下（同时满足）：-->
+        <!--    1、找到配置文件 2、配置文件是一个格式正确的xml文件 也可编程实现打印内部状态, 例如： LoggerContext lc = (LoggerContext)-->
+        <!--    LoggerFactory.getILoggerFactory(); StatusPrinter.print(lc); &ndash;&gt;-->
+        <!--&lt;!&ndash; scan="true" ： 自动扫描该配置文件，若有修改则重新加载该配置文件 &ndash;&gt;-->
+        <!--&lt;!&ndash; scanPeriod="30 seconds" : 配置自动扫面时间间隔（单位可以是：milliseconds, seconds, minutes-->
+        <!--    or hours，默认为：milliseconds）， 默认为1分钟，scan="true"时该配置才会生效 &ndash;&gt;-->
+        <!--<configuration debug="false" scan="true" scanPeriod="30 seconds" packagingData="true">-->
+
+        <!--    &lt;!&ndash; 设置变量。定义变量后，可以使“${}”来使用变量。 &ndash;&gt;-->
+        <!--    &lt;!&ndash;    可选颜色 ch.qos.logback.core.pattern.color-->
+        <!--            %black(内容)  => 亮白-->
+        <!--            blue-->
+        <!--            boldBlue-->
+        <!--            boldCyan-->
+        <!--            boldGreen-->
+        <!--            boldMagenta-->
+        <!--            boldRed-->
+        <!--            boldWhite-->
+        <!--            boldYellow-->
+        <!--    &ndash;&gt;-->
+        <!--    <property name="LOG_FILE_LOCATION" value="./log-file" />-->
+        <!--    <property name="CONSOLE_LOG_PATTERN"-->
+        <!--              value="%white(%date{yyyy-MM-dd HH:mm:ss.SSS}) %highlight(%-5level) &#45;&#45; %green([%thread]) %cyan(%logger{50}) : %magenta(%replace(%caller{1}){'\t|Caller.{1}0|\r\n', ''})   %black(%msg%n)  "/>-->
+
+
+        <!--    &lt;!&ndash; 设置 logger context 名称,一旦设置不可改变，默认为default &ndash;&gt;-->
+        <!--    <contextName>myAppName</contextName>-->
+
+        <!--    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">-->
+        <!--        &lt;!&ndash; encoder class为空时, 默认也为 ch.qos.logback.classic.encoder.PatternLayoutEncoder &ndash;&gt;-->
+        <!--        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">-->
+        <!--            <pattern>${CONSOLE_LOG_PATTERN}</pattern>-->
+        <!--        </encoder>-->
+        <!--    </appender>-->
+
+        <!--    &lt;!&ndash; 按照每天生成日志文件 &ndash;&gt;-->
+        <!--    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">-->
+        <!--        &lt;!&ndash; 当前活动日志文件名：用日期命名 &ndash;&gt;`-->
+        <!--        <file>${LOG_FILE_LOCATION}/MyLog.log</file>-->
+        <!--        &lt;!&ndash; 文件滚动策略根据%d{patter}中的“patter”而定，此处为每天产生一个文件 &ndash;&gt;-->
+        <!--        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">-->
+        <!--            &lt;!&ndash; 归档文件名“.zip或.gz结尾”,表示归档文件自动压缩 &ndash;&gt;-->
+        <!--            <FileNamePattern>${LOG_FILE_LOCATION}/MyLog%d{yyyy-MM-dd}.log.zip</FileNamePattern>-->
+        <!--            &lt;!&ndash;日志文件保留天数&ndash;&gt;-->
+        <!--            <maxHistory>30</maxHistory>-->
+        <!--        </rollingPolicy>-->
+        <!--        &lt;!&ndash;日志文件最大的大小&ndash;&gt;-->
+        <!--        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">-->
+        <!--            <maxFileSize>10MB</maxFileSize>-->
+        <!--        </triggeringPolicy>-->
+        <!--        <encoder>-->
+        <!--            &lt;!&ndash;格式化输出：%d表示日期，%thread表示线程名，%-5level：级别从左显示5个字符宽度%msg：日志消息，%n是换行符&ndash;&gt;-->
+        <!--            <pattern>${CONSOLE_LOG_PATTERN}</pattern>-->
+        <!--        </encoder>-->
+        <!--    </appender>-->
+
+        <!--    &lt;!&ndash; 日志级别若没显示定义，则继承最近的父 logger（该logger需显示定义level,直到rootLogger）的日志级别&ndash;&gt;-->
+        <!--    &lt;!&ndash; logger 的 appender 默认具有累加性（默认日志输出到当前logger的appender和所有祖先logger的appender中），可通过配置 “additivity”属性修改默认行为&ndash;&gt;-->
+        <!--    &lt;!&ndash;name: 用来指定受此 logger 约束的某一个包或者具体的某一个类&ndash;&gt;-->
+        <!--    <logger name="com.xpwi"  level="debug" additivity="false" >-->
+        <!--        <appender-ref ref="FILE"/>-->
+        <!--    </logger>-->
+
+        <!--    &lt;!&ndash; 至多只能配置一个root &ndash;&gt;-->
+        <!--    <root level="debug">-->
+        <!--        <appender-ref ref="STDOUT" />-->
+        <!--        <appender-ref ref="FILE" />-->
+        <!--    </root>-->
+
+        <!--</configuration>-->

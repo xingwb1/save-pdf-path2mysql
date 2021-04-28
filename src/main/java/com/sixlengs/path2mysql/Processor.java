@@ -1,9 +1,7 @@
 package com.sixlengs.path2mysql;
 
-import cn.hutool.core.util.ArrayUtil;
 import cn.hutool.core.util.StrUtil;
-import com.sixlengs.path2mysql.po.Full_img_unzip_2014_2015_fill_PDF_PATH;
-import com.sixlengs.path2mysql.util.ConnectionFactory;
+import com.sixlengs.path2mysql.util.C3p0Utils;
 import com.sixlengs.path2mysql.util.ListSplitUtils;
 import com.sixlengs.path2mysql.util.TimeUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -39,13 +37,8 @@ public class Processor {
     static String username;
     static String password;
     static String suffix;
-    static final  SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd_HHmmss");
-    static final ExecutorService threadPool = Executors.newFixedThreadPool(4);
+    static final ExecutorService threadPool = Executors.newFixedThreadPool(10);
 
-
-//    private static PreparedStatement ps = null;
-//    private static Logger logger = Logger.getLogger(Processor.class.getName());
-//    private String sourceTable = "pdf_path_full_img_unzip_2014_2015_fill";
 
     public static void main(String[] args) {
         try {
@@ -58,9 +51,9 @@ public class Processor {
                 ip = args[2];
                 database = args[3];
                 table = args[4];
-                table = table + "_" + format.format(new Date());
                 username = args[5];
                 password = args[6];
+                C3p0Utils.initDataSource(ip, database, username, password);
                 // 初始化连接
                 long nowStart = System.currentTimeMillis();
                 // 建表
@@ -70,11 +63,11 @@ public class Processor {
 //            // 第一层遍历 , 分解下任务,避免文件过多,一直卡死
 //                File[] files = new File(directory).listFiles();
 //                for (File fileSon : files) {
-                    List<String> pathList = getAllFilePath(new File(directory), new ArrayList<String>());
-                    log.info("最后清理缓冲区数据 条目数【{}】",pathList.size());
-                    //  递归时,每满2000写一次,最后返回的是最后一批,不满2000的数据,写入mysql
-                    // TODO 这里, 写入mysql ,使用多线程,不能阻塞住
-                    threadPool.execute(new MysqlTask(pathList));
+                List<String> pathList = getAllFilePath(new File(directory), new ArrayList<String>());
+                log.info("最后清理缓冲区数据 条目数【{}】", pathList.size());
+                //  递归时,每满2000写一次,最后返回的是最后一批,不满2000的数据,写入mysql
+                // TODO 这里, 写入mysql ,使用多线程,不能阻塞住
+                threadPool.execute(new MysqlTask(pathList));
 //                save2mysql(pathList);
 //                }
                 // 停止接收新任务
@@ -84,13 +77,14 @@ public class Processor {
                 log.info("------任务结束------- 当前时间{}  花费时间{} \n\n", TimeUtils.format(new Date()), TimeUtils.longDiffFormat(nowStart, System.currentTimeMillis()));
                 System.exit(0);
             } else {
-                System.out.println("参数错误:  目录 后缀: PDF/* ip 库 表名 用户名 密码");
+                System.out.println("参数错误,使用格式:  目录 后缀: PDF/* ip  库名 表名 用户名 密码");
                 System.exit(0);
             }
-        }catch (Exception e){
-            log.error("错误{}",e.getMessage(),e);
+        } catch (Exception e) {
+            log.error("错误{}", e.getMessage(), e);
         }
     }
+
     // 相对路径替换为绝对路径   Windows 路径转义   去掉最后的 / , 如果有
     public static String dealPath(String path) {
         path = new File(path).getAbsolutePath().replace("\\", "/");
@@ -110,7 +104,7 @@ public class Processor {
             if (file.isDirectory()) {
                 File[] files = file.listFiles();
                 // FIXME 空文件夹 null 指针?
-                if (files!=null&&files.length>0){
+                if (files != null && files.length > 0) {
                     for (File fileSon : files) {
                         getAllFilePath(fileSon, buffer);
                     }
@@ -119,10 +113,8 @@ public class Processor {
                 // 未指定后缀
                 if ("*".equals(suffix)) {
                     buffer.add(file.getAbsolutePath().replace("\\", "/"));
-                    if (buffer.size()>=2000){
-                        log.info("当前缓存区数据量: {}",buffer.size());
+                    if (buffer.size() >= 2000) {
                         threadPool.execute(new MysqlTask(buffer));
-//                        save2mysql(filePathList);
                         buffer.clear();
                     }
                 }
@@ -130,9 +122,8 @@ public class Processor {
                 else {
                     if (file.getAbsolutePath().toUpperCase().endsWith(suffix)) {
                         buffer.add(file.getAbsolutePath().replace("\\", "/"));
-                        if (buffer.size()>=2000){
+                        if (buffer.size() >= 2000) {
                             threadPool.execute(new MysqlTask(buffer));
-//                            save2mysql(filePathList);
                             buffer.clear();
                         }
                     }
@@ -144,61 +135,46 @@ public class Processor {
     }
 
     public static void createTable() {
+        Connection conn = null;
+        PreparedStatement preparedStatement = null;
         try {
-            Connection conn = ConnectionFactory.getConnection(ip, database, username, password);
-            PreparedStatement preparedStatement = conn.prepareStatement(StrUtil.format("create table {}  (" +
+            SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd_HHmmss");
+            table = table + "_" + format.format(new Date());
+             conn = C3p0Utils.getConnection();
+             preparedStatement = conn.prepareStatement(StrUtil.format("create table {}  (" +
                     "  `num` int(8) NOT NULL AUTO_INCREMENT," +
                     "  `file_path` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL," +
                     "  PRIMARY KEY (`num`) USING BTREE" +
                     ") ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Dynamic;", table));
             preparedStatement.execute();
+
         } catch (SQLException e) {
             log.error("建表失败 {}.{}", database, table, e);
+        }finally {
+            C3p0Utils.release(conn, preparedStatement, null);
         }
     }
 
-//    public static void save2mysql(List<String> pathList) {
-//        try {
-//            PreparedStatement ps;
-//            ps = conn.prepareStatement(StrUtil.format("insert into {} values (null,?)", table));
-//            List<List<String>> lists = ListSplitUtils.subListByNum(pathList, 1000);
-//            for (List<String> list : lists) {
-//                // 批次写入 1000条
-//                log.info("PDF路径写入mysql,当前批次【{}】", list.size());
-//                for (String path : list) {
-////                    ps.setString(1, bean.getFileName());
-//                    ps.setString(1, path);
-//
-//                    ps.addBatch();
-//                    ps.executeBatch();
-//                    conn.setAutoCommit(false);
-//                    conn.commit();
-//                    ps.clearBatch();
-//                }
-//            }
-//            ps.close();
-//
-//        } catch (Exception e) {
-//            log.error("写入数据库错误", e);
-//        }
-//    }
 
-    private static class MysqlTask implements Runnable{
-        private  Connection conn = null;
+    private static class MysqlTask implements Runnable {
+        private Connection conn = null;
         List<String> pathList;
-        private MysqlTask(){}
+
+        private MysqlTask() {
+        }
+
         // pathList 数据需要拷贝出来,多出的线程单独用,主线程需要继续使用pathList清空,遍历
         public MysqlTask(List<String> pathList) {
-          this.pathList= new ArrayList<>(pathList);
+            this.pathList = new ArrayList<>(pathList);
         }
 
         @Override
         public void run() {
+            PreparedStatement ps = null;
             try {
-                conn = ConnectionFactory.getConnection(ip, database, username, password);
-                PreparedStatement ps;
+                conn = C3p0Utils.getConnection();
                 ps = conn.prepareStatement(StrUtil.format("insert into {} values (null,?)", table));
-                List<List<String>> lists = ListSplitUtils.subListByNum(pathList, 500);
+                List<List<String>> lists = ListSplitUtils.subListByNum(pathList, 1000);
                 for (List<String> list : lists) {
                     // 批次写入 1000条
                     log.info("文件路径写入mysql,当前批次【{}】", list.size());
@@ -213,9 +189,10 @@ public class Processor {
                         ps.clearBatch();
                     }
                 }
-                ps.close();
             } catch (Exception e) {
                 log.error("写入数据库错误", e);
+            }finally {
+                C3p0Utils.release(conn,ps,null);
             }
         }
     }

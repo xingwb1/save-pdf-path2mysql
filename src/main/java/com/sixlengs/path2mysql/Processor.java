@@ -51,8 +51,8 @@ public class Processor {
 
     public static void main(String[] args) {
         try {
-            // 目录 后缀: PDF/* ip 库 表名 用户名 密码
-            if (args != null && args.length == 7) {
+            // 目录 后缀: PDF/* ip 库 表名 用户名 密码    >=7原因: 可能有jvm 参数
+            if (args != null && args.length >= 7) {
                 directory = args[0];
                 // 相对路径替换为绝对路径   Windows 路径转义   去掉最后的 / , 如果有
                 directory = dealPath(directory);
@@ -187,7 +187,7 @@ public class Processor {
             e.printStackTrace();
         }
     }
-    static int batchSize = 1000;
+    static int batchSize = 200;
     public static List<String> getAllFilePath(File file, List<String> buffer) {
         try {
             if (file != null) {
@@ -208,7 +208,7 @@ public class Processor {
                             // 等待,内存最多存 一万条
                             while (true) {
                                 if (readPathGroupNum - mysqlGroupNum.longValue() > 10) {
-                                    Thread.sleep(10);
+                                    Thread.sleep(50);
                                 } else {
                                     break;
                                 }
@@ -225,7 +225,7 @@ public class Processor {
                                 log.info("路径遍历{}文件 组数【{}】 批次大小【{}】",suffix, readPathGroupNum++, batchSize);
                                 while (true) {
                                     if (readPathGroupNum - mysqlGroupNum.longValue() > 10) {
-                                        Thread.sleep(10);
+                                        Thread.sleep(50);
                                     } else {
                                         break;
                                     }
@@ -283,6 +283,7 @@ public class Processor {
             PreparedStatement ps = null;
             try {
                 conn = C3p0Utils.getConnection();
+                conn.setAutoCommit(false);
                 ps = conn.prepareStatement(StrUtil.format("insert into {} values (null,?)", table));
 //                List<List<String>> lists = ListSplitUtils.subListByNum(pathList, 1000);
 //                for (List<String> list : lists) {
@@ -293,7 +294,6 @@ public class Processor {
 
                     ps.addBatch();
                     ps.executeBatch();
-                    conn.setAutoCommit(false);
                     conn.commit();
                     ps.clearBatch();
                 }

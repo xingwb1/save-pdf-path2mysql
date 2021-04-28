@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -39,6 +40,14 @@ public class Processor {
     static String suffix;
     static final ExecutorService threadPool = Executors.newFixedThreadPool(10);
 
+    /**
+     * 递归获取文件路径, 组数计数器 非多线程
+     */
+    static long readPathGroupNum = 1;
+    /**
+     * 路径写入mysql 组数计数器,多线程
+     */
+    private static AtomicInteger mysqlGroupNum = new AtomicInteger(1);
 
     public static void main(String[] args) {
         try {
@@ -60,16 +69,13 @@ public class Processor {
                 createTable();
                 log.info("任务分析: 解析【{}】目录下, 后缀为:【{}】 (*代表所有文件) 的文件绝对路径写入mysql: ip：【{}】  库名：【{}】 表名：【{}】  用户名:【{}】 密码:【{}】", directory, suffix, ip, database, table, username, password);
 
-//            // 第一层遍历 , 分解下任务,避免文件过多,一直卡死
-//                File[] files = new File(directory).listFiles();
-//                for (File fileSon : files) {
+
                 List<String> pathList = getAllFilePath(new File(directory), new ArrayList<String>());
                 log.info("最后清理缓冲区数据 条目数【{}】", pathList.size());
                 //  递归时,每满2000写一次,最后返回的是最后一批,不满2000的数据,写入mysql
-                // TODO 这里, 写入mysql ,使用多线程,不能阻塞住
+                //  写入mysql ,使用多线程,不能阻塞住
                 threadPool.execute(new MysqlTask(pathList));
-//                save2mysql(pathList);
-//                }
+
                 // 停止接收新任务
                 threadPool.shutdown();
                 // 等待子线程执行完毕
@@ -99,37 +105,59 @@ public class Processor {
         return s;
     }
 
+    static int batchSize = 1000;
+
     public static List<String> getAllFilePath(File file, List<String> buffer) {
-        if (file != null) {
-            if (file.isDirectory()) {
-                File[] files = file.listFiles();
-                // FIXME 空文件夹 null 指针?
-                if (files != null && files.length > 0) {
-                    for (File fileSon : files) {
-                        getAllFilePath(fileSon, buffer);
+        try {
+            if (file != null) {
+                if (file.isDirectory()) {
+                    File[] files = file.listFiles();
+                    // FIXME 空文件夹 null 指针?
+                    if (files != null && files.length > 0) {
+                        for (File fileSon : files) {
+                            getAllFilePath(fileSon, buffer);
+                        }
                     }
-                }
-            } else if (file.isFile()) {
-                // 未指定后缀
-                if ("*".equals(suffix)) {
-                    buffer.add(file.getAbsolutePath().replace("\\", "/"));
-                    if (buffer.size() >= 2000) {
-                        threadPool.execute(new MysqlTask(buffer));
-                        buffer.clear();
-                    }
-                }
-                // 指定后缀 , 大写比较
-                else {
-                    if (file.getAbsolutePath().toUpperCase().endsWith(suffix)) {
+                } else if (file.isFile()) {
+                    // 未指定后缀
+                    if ("*".equals(suffix)) {
                         buffer.add(file.getAbsolutePath().replace("\\", "/"));
-                        if (buffer.size() >= 2000) {
+                        if (buffer.size() >= batchSize) {
+                            log.info("路径遍历获取所有文件 组数【{}】 批次大小【{}】", readPathGroupNum++, batchSize);
+                            while (true) {
+                                if (readPathGroupNum - mysqlGroupNum.longValue() > 10) {
+                                    Thread.sleep(10);
+                                } else {
+                                    break;
+                                }
+                            }
                             threadPool.execute(new MysqlTask(buffer));
                             buffer.clear();
                         }
                     }
+                    // 指定后缀 , 大写比较
+                    else {
+                        if (file.getAbsolutePath().toUpperCase().endsWith(suffix)) {
+                            buffer.add(file.getAbsolutePath().replace("\\", "/"));
+                            if (buffer.size() >= batchSize) {
+                                log.info("路径遍历{}文件 组数【{}】 批次大小【{}】",suffix, readPathGroupNum++, batchSize);
+                                while (true) {
+                                    if (readPathGroupNum - mysqlGroupNum.longValue() > 10) {
+                                        Thread.sleep(10);
+                                    } else {
+                                        break;
+                                    }
+                                }
+                                threadPool.execute(new MysqlTask(buffer));
+                                buffer.clear();
+                            }
+                        }
+                    }
+                    // 最后清空不够2000条的缓存
                 }
-                // 最后清空不够2000条的缓存
             }
+        } catch (Exception e) {
+            log.error("遍历异常 {}", e.getMessage(), e);
         }
         return buffer;
     }
@@ -140,8 +168,8 @@ public class Processor {
         try {
             SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd_HHmmss");
             table = table + "_" + format.format(new Date());
-             conn = C3p0Utils.getConnection();
-             preparedStatement = conn.prepareStatement(StrUtil.format("create table {}  (" +
+            conn = C3p0Utils.getConnection();
+            preparedStatement = conn.prepareStatement(StrUtil.format("create table {}  (" +
                     "  `num` int(8) NOT NULL AUTO_INCREMENT," +
                     "  `file_path` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL," +
                     "  PRIMARY KEY (`num`) USING BTREE" +
@@ -150,7 +178,7 @@ public class Processor {
 
         } catch (SQLException e) {
             log.error("建表失败 {}.{}", database, table, e);
-        }finally {
+        } finally {
             C3p0Utils.release(conn, preparedStatement, null);
         }
     }
@@ -174,25 +202,25 @@ public class Processor {
             try {
                 conn = C3p0Utils.getConnection();
                 ps = conn.prepareStatement(StrUtil.format("insert into {} values (null,?)", table));
-                List<List<String>> lists = ListSplitUtils.subListByNum(pathList, 1000);
-                for (List<String> list : lists) {
-                    // 批次写入 1000条
-                    log.info("文件路径写入mysql,当前批次【{}】", list.size());
-                    for (String path : list) {
+//                List<List<String>> lists = ListSplitUtils.subListByNum(pathList, 1000);
+//                for (List<String> list : lists) {
+                // 批次写入 1000条
+                for (String path : pathList) {
 //                    ps.setString(1, bean.getFileName());
-                        ps.setString(1, path);
+                    ps.setString(1, path);
 
-                        ps.addBatch();
-                        ps.executeBatch();
-                        conn.setAutoCommit(false);
-                        conn.commit();
-                        ps.clearBatch();
-                    }
+                    ps.addBatch();
+                    ps.executeBatch();
+                    conn.setAutoCommit(false);
+                    conn.commit();
+                    ps.clearBatch();
                 }
+                log.warn("文件路径写入mysql, 组数【{}】 批次大小【{}】", mysqlGroupNum.getAndIncrement(), pathList.size());
+//                }
             } catch (Exception e) {
                 log.error("写入数据库错误", e);
-            }finally {
-                C3p0Utils.release(conn,ps,null);
+            } finally {
+                C3p0Utils.release(conn, ps, null);
             }
         }
     }

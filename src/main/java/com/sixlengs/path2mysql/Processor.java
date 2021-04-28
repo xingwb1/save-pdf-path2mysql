@@ -2,7 +2,6 @@ package com.sixlengs.path2mysql;
 
 import cn.hutool.core.util.StrUtil;
 import com.sixlengs.path2mysql.util.C3p0Utils;
-import com.sixlengs.path2mysql.util.ListSplitUtils;
 import com.sixlengs.path2mysql.util.TimeUtils;
 import lombok.extern.slf4j.Slf4j;
 
@@ -14,6 +13,7 @@ import java.sql.Statement;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -62,19 +62,20 @@ public class Processor {
                 table = args[4];
                 username = args[5];
                 password = args[6];
-                C3p0Utils.initDataSource(ip, database, username, password);
                 // 初始化连接
+                C3p0Utils.initDataSource(ip, database, username, password);
+                // 开始时间计时
                 long nowStart = System.currentTimeMillis();
                 // 建表
                 createTable();
                 log.info("任务分析: 解析【{}】目录下, 后缀为:【{}】 (*代表所有文件) 的文件绝对路径写入mysql: ip：【{}】  库名：【{}】 表名：【{}】  用户名:【{}】 密码:【{}】", directory, suffix, ip, database, table, username, password);
 
-
-                List<String> pathList = getAllFilePath(new File(directory), new ArrayList<String>());
-                log.info("最后清理缓冲区数据 条目数【{}】", pathList.size());
+                List<String> buffer = getAllFilePath(new File(directory), new ArrayList<String>());
+//                List<String> buffer = scanDirNoRecursion(directory);
+                log.info("最后清理缓冲区数据 条目数【{}】", buffer.size());
                 //  递归时,每满2000写一次,最后返回的是最后一批,不满2000的数据,写入mysql
                 //  写入mysql ,使用多线程,不能阻塞住
-                threadPool.execute(new MysqlTask(pathList));
+                threadPool.execute(new MysqlTask(buffer));
 
                 // 停止接收新任务
                 threadPool.shutdown();
@@ -83,7 +84,7 @@ public class Processor {
                 log.info("------任务结束------- 当前时间{}  花费时间{} \n\n", TimeUtils.format(new Date()), TimeUtils.longDiffFormat(nowStart, System.currentTimeMillis()));
                 System.exit(0);
             } else {
-                System.out.println("参数错误,使用格式:  目录 后缀: PDF/* ip  库名 表名 用户名 密码");
+              log.error("错误参数个数{},使用格式:  目录 后缀: PDF/* ip  库名 表名 用户名 密码",args.length);
                 System.exit(0);
             }
         } catch (Exception e) {
@@ -104,9 +105,89 @@ public class Processor {
         }
         return s;
     }
-
+    //非递归
+    public static List<String> scanDirNoRecursion(String path){
+        List<String> buffer = new ArrayList<>();
+        LinkedList list = new LinkedList();
+        File dir = new File(path);
+        File file[] = dir.listFiles();
+        for (int i = 0; i < file.length; i++) {
+            if (file[i].isDirectory()) {
+                list.add(file[i]);
+            } else{
+                dealFile(file[i],buffer);
+//                System.out.println(file[i].getAbsolutePath());
+//                num++;
+            }
+        }
+        File tmp;
+        while (!list.isEmpty()) {
+            tmp = (File)list.removeFirst();//首个目录
+            if (tmp.isDirectory()) {
+                file = tmp.listFiles();
+                if (file == null) {
+                    continue;
+                }
+                for (int i = 0; i < file.length; i++) {
+                    if (file[i].isDirectory()) {
+                        list.add(file[i]);//目录则加入目录列表，关键
+                    } else{
+                        dealFile(file[i],buffer);
+//                        System.out.println(file[i].getAbsolutePath());
+//                        num++;
+                    }
+                }
+            } else {
+                dealFile(tmp,buffer);
+//                System.out.println(tmp.getAbsolutePath());
+//                num++;
+            }
+        }
+        return buffer;
+    }
+    private static void dealFile(File file,List<String> buffer) {
+        try {
+            // 未指定后缀
+            if ("*".equals(suffix)) {
+                buffer.add(file.getAbsolutePath().replace("\\", "/"));
+                if (buffer.size() >= batchSize) {
+                    log.info("路径遍历获取所有文件 组数【{}】 批次大小【{}】", readPathGroupNum++, batchSize);
+                    // 等待,内存最多存 一万条
+                    while (true) {
+                        if (readPathGroupNum - mysqlGroupNum.longValue() > 10) {
+                            Thread.sleep(10);
+                        } else {
+                            break;
+                        }
+                    }
+                    threadPool.execute(new MysqlTask(buffer));
+                    buffer.clear();
+                }
+            }
+            // 指定后缀 , 大写比较
+            else {
+                if (file.getAbsolutePath().toUpperCase().endsWith(suffix)) {
+                    buffer.add(file.getAbsolutePath().replace("\\", "/"));
+                    if (buffer.size() >= batchSize) {
+                        log.info("路径遍历{}文件 组数【{}】 批次大小【{}】", suffix, readPathGroupNum++, batchSize);
+                        while (true) {
+                            if (readPathGroupNum - mysqlGroupNum.longValue() > 10) {
+                                Thread.sleep(10);
+                            } else {
+                                break;
+                            }
+                        }
+                        threadPool.execute(new MysqlTask(buffer));
+                        buffer.clear();
+                    }
+                }
+            }
+            // 最后清空不够2000条的缓存
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
     static int batchSize = 1000;
-
     public static List<String> getAllFilePath(File file, List<String> buffer) {
         try {
             if (file != null) {
@@ -124,6 +205,7 @@ public class Processor {
                         buffer.add(file.getAbsolutePath().replace("\\", "/"));
                         if (buffer.size() >= batchSize) {
                             log.info("路径遍历获取所有文件 组数【{}】 批次大小【{}】", readPathGroupNum++, batchSize);
+                            // 等待,内存最多存 一万条
                             while (true) {
                                 if (readPathGroupNum - mysqlGroupNum.longValue() > 10) {
                                     Thread.sleep(10);

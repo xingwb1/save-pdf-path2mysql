@@ -33,12 +33,13 @@ public class ProcessorForkJoin {
     private static String username;
     private static String password;
     private static String suffix;
+    private static final Integer THREAD_NUM = 10;
     /**
      * main参数，所有数据类型 all
      */
     private static final String ALL = "ALL";
-    private static final ExecutorService threadPool = Executors.newFixedThreadPool(10);
-    private static final ForkJoinPool forkJoinPool = new ForkJoinPool(10);
+    private static final ExecutorService threadPool = Executors.newFixedThreadPool(THREAD_NUM);
+    private static final ForkJoinPool forkJoinPool = new ForkJoinPool(THREAD_NUM);
 
     /**
      * 递归获取文件路径, 组数计数器 多线程
@@ -171,7 +172,7 @@ public class ProcessorForkJoin {
                                     log.info("文件(All)已读 组数【{}】 批次大小【{}】 读取文件总数校验：【{}】", readPathGroupNum.incrementAndGet(), BATCH_SIZE, scanSum.get());
                                     // 等待,内存最多存 一万条
                                     while (true) {
-                                        if (readPathGroupNum.get() - mysqlGroupNum.get() >= 10) {
+                                        if (readPathGroupNum.get() - mysqlGroupNum.get() >= THREAD_NUM) {
                                             Thread.sleep(10);
                                         } else {
                                             break;
@@ -190,7 +191,7 @@ public class ProcessorForkJoin {
                                         log.info("文件{}已读 组数【{}】 批次大小【{}】 文件总数校验：【{}】", suffix, readPathGroupNum.incrementAndGet(), BATCH_SIZE, scanSum.get());
 //                                        log.info("{}文件已读 组数【{}】 批次大小【{}】 ForkJoin多线程递归遍历文件数校验：【{}】", suffix, readPathGroupNum.incrementAndGet(), BATCH_SIZE, scanSum.get());
                                         while (true) {
-                                            if (readPathGroupNum.get() - mysqlGroupNum.get() >= 10) {
+                                            if (readPathGroupNum.get() - mysqlGroupNum.get() >= THREAD_NUM) {
                                                 Thread.sleep(10);
                                             } else {
                                                 break;

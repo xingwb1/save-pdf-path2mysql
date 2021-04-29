@@ -128,7 +128,7 @@
                     </descriptorRefs>
                     <archive>
                         <manifest>
-                            <mainClass>com.sixlengs.path2mysql.Processor</mainClass>
+                            <mainClass>com.sixlengs.path2mysql.ProcessorForkJoin</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

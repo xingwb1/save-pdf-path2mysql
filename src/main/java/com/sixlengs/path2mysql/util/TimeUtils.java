@@ -44,6 +44,26 @@ public class TimeUtils {
 
         return StrUtil.format("{}天 {}小时 {}分钟 {}秒 {}毫秒",day,hour,minute,second,millionSecond);
         }
+    public static String longDiffFormat(long begin) {
+        long end = System.currentTimeMillis();
+        if (begin>end){
+            long temp = begin;
+            begin = end;
+            end = temp;
+        }
+        long million = end - begin;
+        Calendar diff = Calendar.getInstance();
+        diff.setTime(new Date(million));
+        Calendar zero = Calendar.getInstance();
+        zero.setTime(new Date(0));
 
+        int day = diff.get(Calendar.DAY_OF_YEAR) - zero.get(Calendar.DAY_OF_YEAR);
+        int hour = diff.get(Calendar.HOUR) - zero.get(Calendar.HOUR);
+        int minute = diff.get(Calendar.MINUTE) - zero.get(Calendar.MINUTE);
+        int second = diff.get(Calendar.SECOND) - zero.get(Calendar.SECOND);
+        int millionSecond = diff.get(Calendar.MILLISECOND) - zero.get(Calendar.MILLISECOND);
+
+        return StrUtil.format("{}天 {}小时 {}分钟 {}秒 {}毫秒",day,hour,minute,second,millionSecond);
+    }
 
 }

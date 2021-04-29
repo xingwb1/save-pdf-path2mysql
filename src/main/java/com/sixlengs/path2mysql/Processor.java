@@ -11,10 +11,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -84,7 +81,7 @@ public class Processor {
                 log.info("------任务结束------- 当前时间{}  花费时间{} \n\n", TimeUtils.format(new Date()), TimeUtils.longDiffFormat(nowStart, System.currentTimeMillis()));
                 System.exit(0);
             } else {
-              log.error("错误参数个数{},使用格式:  目录 后缀: PDF/* ip  库名 表名 用户名 密码",args.length);
+                log.error("错误参数个数{},使用格式:  目录 后缀: PDF/* ip  库名 表名 用户名 密码", args.length);
                 System.exit(0);
             }
         } catch (Exception e) {
@@ -105,47 +102,8 @@ public class Processor {
         }
         return s;
     }
-    //非递归
-    public static List<String> scanDirNoRecursion(String path){
-        List<String> buffer = new ArrayList<>();
-        LinkedList list = new LinkedList();
-        File dir = new File(path);
-        File file[] = dir.listFiles();
-        for (int i = 0; i < file.length; i++) {
-            if (file[i].isDirectory()) {
-                list.add(file[i]);
-            } else{
-                dealFile(file[i],buffer);
-//                System.out.println(file[i].getAbsolutePath());
-//                num++;
-            }
-        }
-        File tmp;
-        while (!list.isEmpty()) {
-            tmp = (File)list.removeFirst();//首个目录
-            if (tmp.isDirectory()) {
-                file = tmp.listFiles();
-                if (file == null) {
-                    continue;
-                }
-                for (int i = 0; i < file.length; i++) {
-                    if (file[i].isDirectory()) {
-                        list.add(file[i]);//目录则加入目录列表，关键
-                    } else{
-                        dealFile(file[i],buffer);
-//                        System.out.println(file[i].getAbsolutePath());
-//                        num++;
-                    }
-                }
-            } else {
-                dealFile(tmp,buffer);
-//                System.out.println(tmp.getAbsolutePath());
-//                num++;
-            }
-        }
-        return buffer;
-    }
-    private static void dealFile(File file,List<String> buffer) {
+
+    private static void dealFile(File file, List<String> buffer) {
         try {
             // 未指定后缀
             if ("*".equals(suffix)) {
@@ -183,11 +141,13 @@ public class Processor {
                 }
             }
             // 最后清空不够2000条的缓存
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
     static int batchSize = 200;
+
     public static List<String> getAllFilePath(File file, List<String> buffer) {
         try {
             if (file != null) {
@@ -222,7 +182,7 @@ public class Processor {
                         if (file.getAbsolutePath().toUpperCase().endsWith(suffix)) {
                             buffer.add(file.getAbsolutePath().replace("\\", "/"));
                             if (buffer.size() >= batchSize) {
-                                log.info("路径遍历{}文件 组数【{}】 批次大小【{}】",suffix, readPathGroupNum++, batchSize);
+                                log.info("路径遍历{}文件 组数【{}】 批次大小【{}】", suffix, readPathGroupNum++, batchSize);
                                 while (true) {
                                     if (readPathGroupNum - mysqlGroupNum.longValue() > 10) {
                                         Thread.sleep(50);
@@ -266,13 +226,10 @@ public class Processor {
     }
 
 
+
     private static class MysqlTask implements Runnable {
         private Connection conn = null;
         List<String> pathList;
-
-        private MysqlTask() {
-        }
-
         // pathList 数据需要拷贝出来,多出的线程单独用,主线程需要继续使用pathList清空,遍历
         public MysqlTask(List<String> pathList) {
             this.pathList = new ArrayList<>(pathList);

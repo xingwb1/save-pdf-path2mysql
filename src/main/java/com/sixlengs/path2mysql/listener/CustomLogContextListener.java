@@ -42,7 +42,7 @@ public class CustomLogContextListener extends ContextAwareBase implements Logger
     @Override
     public void start() {
         SimpleDateFormat format = new SimpleDateFormat("yyyy年MM月dd日");
-        String s = System.getProperty("user.dir") + "/file_path2mysql_logs/" + format.format(new Date());
+        String s = System.getProperty("user.dir") + "/forkjoin_file_path2mysql_logs/" + format.format(new Date());
         s = s.replace("\\", "/");
         System.setProperty(LOG_PAHT_KEY, s);
         Context context = getContext();
